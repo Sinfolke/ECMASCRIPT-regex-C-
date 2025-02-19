@@ -1,0 +1,19 @@
+Token: CHARACTER_SEQUENCE
+  Negated: No
+  Characters: - + % _ . 
+  Ranges: [0-9] [A-Z] [a-z] 
+Token: CHARACTER
+value: @
+Token: CHARACTER_SEQUENCE
+  Negated: No
+  Characters: - . 
+  Ranges: [0-9] [A-Z] [a-z] 
+Token: ESCAPE
+Token: CHARACTER_SEQUENCE
+  Negated: No
+  Characters: 
+  Ranges: [A-Z] [a-z] 
+Token: OR
+size: 3
+Token: NAMED_CAPTURE_GROUP
+Token: STR_END
