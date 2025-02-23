@@ -44,17 +44,6 @@ static result_t match_anything(const char* str, size_t &pos, Token_sequence &seq
 static result_t match_strbegin(const char* str, size_t &pos);
 static result_t match_strend(const char* str, size_t &pos);
 static result_t match_all(const char* str, size_t &pos, Token_sequence &sequence);
-[[noreturn]] void throw_syntax_error(std::string msg) {
-    std::cerr << msg << '\n';
-    exit(1); // or abort
-}
-
-void throw_error_unterminated_group(const char* str) {
-    std::string msg = "Invalid regular expression: /";
-    msg += str;
-    msg += "/: Unterminated group";
-    throw_syntax_error(msg);
-}
 static std::string id(const char* str, size_t &pos) {
     std::string res;
     if (!isalpha(str[pos]) && str[pos] != '_')
@@ -115,14 +104,79 @@ static result_t match_escape(const char* str, size_t &pos, Token_sequence &seque
     if (str[pos] != '\\')
         return {};
     pos++;
-    if (str[pos + 1] == 'd' && str[pos + 2] == 'd') {
+    if (str[pos] == 'd' && str[pos + 1] == 'd' && str[pos + 2] == 'd') {
         token.value = '\0';
-    } else {
-
+        pos += 3;
+    }  else {
+        token.value = str[pos];
+        pos++;
     }
-    token.value = str[pos];
-    pos++;
+
     return {true, token};
+}
+static result_t match_unicode_property(const char* str, size_t &pos, Token_sequence &sequence) {
+    Token token = {Tokens::ESCAPE};
+    if (str[pos] != '\\')
+        return {};
+    pos++;
+    if (str[pos] == 'p' || str[pos] == 'P') {
+        bool negative = str[pos] == 'P';
+        pos++;
+        if (str[pos] != '{') {
+            throw regex_syntax_error("Invalid escape sequence", str, pos);
+        }
+        pos++;
+        std::string name = id(str, pos);
+        if (name == "") {
+            throw regex_syntax_error("Invalid escape sequence", str, pos);
+        }
+        if (str[pos] != '}') {
+            throw regex_syntax_error("Invalid escape sequence", str, pos);
+        }
+        pos++;
+        token.name = negative ? Tokens::UNICODE_PROPERTY_NEGATIVE : Tokens::UNICODE_PROPERTY;
+        token.value = name;
+    }
+}
+static result_t match_hex_character(const char* str, size_t &pos, Token_sequence &sequence) {
+    Token token = {Tokens::ESCAPE};
+    if (str[pos] != '\\')
+        return {};
+    pos++;
+    if (str[pos] == 'u' || str[pos] == 'x') {
+        std::string hex;
+        if (str[pos] == 'u') {
+            pos++;
+            if (str[pos] == '\0' || str[pos + 1] == '\0' || str[pos + 2] == '\0' || str[pos + 3] == '\0') {
+                throw regex_syntax_error("Hex expected", str, pos);
+            }
+            hex = std::string(pos, 4);
+            pos += 4;
+        } else {
+            if (str[pos] == '\0' || str[pos + 1] == '\0') {
+                throw regex_syntax_error("Hex expected", str, pos);
+            }
+            pos++;
+            hex = std::string(pos, 2);
+            pos += 2
+        }
+        token.name = Tokens::HEX_CHARACTER;
+        token.value = hex;
+    }
+}
+static result_t match_control_character(const char* str, size_t &pos, Token_sequence &sequence) {
+    Token token = {Tokens::ESCAPE};
+    if (str[pos] != '\\')
+        return {};
+    pos++;
+    if (str[pos] == 'c') {
+        pos++;
+        if (str[pos] == '\0') {
+            throw_syntax_error("Invalid escape sequence");
+        }
+        token.name = Tokens::CONTOROL_CHARACTER;
+        token.value = str[pos++];
+    }
 }
 static result_t match_or(const char* str, size_t &pos, Token_sequence &sequence) {
     Token token = {Tokens::OR};
